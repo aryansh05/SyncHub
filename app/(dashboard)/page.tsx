@@ -5,22 +5,29 @@ import { useOrganization } from "@clerk/nextjs";
 import { EmptyOrg } from "./_components/empty-org";
 import { BoardList } from "./_components/board-list";
 
-interface DashboardPageProps {
-  searchParams?: {
-    search?: string;
-    favourites?: string;
-  };
-}
-
-export default function DashboardPage({ searchParams }: DashboardPageProps) {
+export default function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ search?: string; favourites?: string }>;
+}) {
   const { organization } = useOrganization();
 
-  const safeSearchParams = useMemo(
-    () => ({
-      search: searchParams?.search ?? "",
-      favourites: searchParams?.favourites ?? "",
-    }),
-    [searchParams?.search, searchParams?.favourites]
+  // Unwrap searchParams (it’s now a Promise in Next.js 15)
+  const [params, setParams] = React.useState<{ search?: string; favourites?: string }>({});
+
+  React.useEffect(() => {
+    async function unwrap() {
+      if (searchParams) {
+        const resolved = await searchParams;
+        setParams(resolved ?? {});
+      }
+    }
+    unwrap();
+  }, [searchParams]);
+
+  const safeParams = useMemo(
+    () => params ?? {},
+    [params.search, params.favourites]
   );
 
   return (
@@ -28,7 +35,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
       {!organization ? (
         <EmptyOrg />
       ) : (
-        <BoardList orgId={organization.id} query={safeSearchParams} />
+        <BoardList orgId={organization.id} query={safeParams} />
       )}
     </div>
   );
